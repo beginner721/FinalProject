@@ -1,5 +1,7 @@
-﻿using DataAccess.Abstract;
+﻿using Core.DataAccess.EntityFramework;
+using DataAccess.Abstract;
 using Entities.Concrete;
+using Entities.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -9,57 +11,23 @@ using System.Text;
 
 namespace DataAccess.Concrete.EntityFramework
 {
-    public class EfProductDal : IProductDal
+    public class EfProductDal : EfEntityRepositoryBase<Product, NorthwindContext>, IProductDal
+    //IProductDal'ın istediği herşey EfEntityRepository'nin içinde var, artık hazır...
+    /*Peki zaten IProductDal istekleri EfEntityRepository'nin içinde varsa neden IProductDal'ı hala kullanıyoruz ?
+     * 
+     * Çünkü!!! Sadece Product'ler için bulunacak işlemleri IProductDal'a ekleyeceğiz! Bunun için gereklidir....
+     Yani EfEntityRepositoryBase'den temel olan ihtiyaçlarımızı alacağız ardından sadece Product'ler için gerekebilecek 
+    özellikleri de IProductDal'a yazarak oradan implemente edeceğiz........*/
     {
-        public void Add(Product entity)
+        public List<ProductDetailDto> GetProductDetails()
         {
-            using (NorthwindContext context =new NorthwindContext())
-                /*using: kullanımı bitince direkt olarak garbage collectore gider ve kendini sistemden atar, belleği temizler
-        Context işyükünü arttırır,pahalıdır. doğrudan newlemek yerine using kullanmak performansımızı artıracaktır. */
+            using (NorthwindContext context= new NorthwindContext())
             {
-                var addedEntity = context.Entry(entity); //veri kaynağımızla ilişkilendirdik(referansı yakaladık) peki bunu ne yapalım ?
-                addedEntity.State = EntityState.Added; //eklenecek bir nesnedir, EntityState.Added 
-                context.SaveChanges(); //işlemleri gerçekleştir... yani yukarıdaki Added gerçekleştirilir.
-            }
-        }
-
-        public void Delete(Product entity)
-        {
-            using (NorthwindContext context = new NorthwindContext())
-      
-            {
-                var deletedEntity = context.Entry(entity); 
-                deletedEntity.State = EntityState.Deleted; 
-                context.SaveChanges(); 
-            }
-        }
-
-        public Product Get(Expression<Func<Product, bool>> filter)
-        {
-            using (NorthwindContext context = new NorthwindContext())
-            {
-                return context.Set<Product>().SingleOrDefault(filter); 
-            }
-        }
-
-        public List<Product> GetAll(Expression<Func<Product, bool>> filter = null)
-        {
-            using (NorthwindContext context=new NorthwindContext())
-            {
-                return filter == null 
-                    ? context.Set<Product>().ToList() //filter eşittir null ise burası değilse alt kısım çalışır
-                    : context.Set<Product>().Where(filter).ToList(); // ternary operatorudur.
-            }
-        }
-
-        public void Update(Product entity)
-        {
-            using (NorthwindContext context = new NorthwindContext())
-
-            {
-                var updatedEntity = context.Entry(entity);
-                updatedEntity.State = EntityState.Modified;
-                context.SaveChanges();
+                var result = from p in context.Products
+                             join c in context.Categories
+                             on p.CategoryID equals c.CategoryID
+                             select new ProductDetailDto { ProductId = p.ProductID, ProductName = p.ProductName, CategoryName = c.CategoryName, UnitsInStock = p.UnitsInStock };
+                return result.ToList();
             }
         }
     }
